@@ -45,14 +45,18 @@
     <button onclick="sendMessage()">Отправить хаос</button>
 
     <script>
-        // Чистый REST API адрес вашей базы данных
-        const API_URL = 'https://jrbxaskvqmnrwwdrsmoc.supabase.co';
+        // Ваши базовые ключи
+        const SERVER_HOST = 'https://jrbxaskvqmnrwwdrsmoc.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_oikYCFCq3-sSgirNwU8a1Q_seTMK0vV';
+
+        // Полный правильный путь к таблице для GET и POST запросов
+        const TARGET_URL = `${SERVER_HOST}/rest/v1/messages`;
 
         // 1. Функция загрузки сообщений с сервера
         async function loadMessages() {
             try {
-                const response = await fetch(`${API_URL}?select=*&order=created_at.asc&limit=50`, {
+                // Строго проверяем, что в адресе есть /rest/v1/messages
+                const response = await fetch(`${TARGET_URL}?select=*&order=created_at.asc&limit=50`, {
                     headers: { 
                         'apikey': SUPABASE_KEY, 
                         'Authorization': `Bearer ${SUPABASE_KEY}` 
@@ -76,7 +80,7 @@
             if (!text.trim()) return;
 
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch(TARGET_URL, {
                     method: 'POST',
                     headers: {
                         'apikey': SUPABASE_KEY,
@@ -89,10 +93,9 @@
 
                 if (response.ok) {
                     document.getElementById('messageInput').value = '';
-                    // Сразу обновляем чат у себя, чтобы увидеть отправленное сообщение
-                    loadMessages();
+                    loadMessages(); // Сразу обновляем чат у себя
                 } else {
-                    console.error("Сервер вернул ошибку при отправке");
+                    console.error("Сервер вернул ошибку при отправке. Статус:", response.status);
                 }
             } catch (e) { 
                 console.error("Сетевая ошибка отправки:", e); 
@@ -114,7 +117,7 @@
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
 
-        // 4. Поллинг (автоматическое обновление чата каждые 3 секунды взамен заблокированных сокетов)
+        // Автоматическое обновление чата каждые 3 секунды
         setInterval(loadMessages, 3000);
 
         // Первый запуск при открытии
