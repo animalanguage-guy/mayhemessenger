@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MayheMessenger</title>
     <!-- Официальный JS-клиент Supabase для работы с базой и Realtime -->
-    <script src="https://jsdelivr.net"></script>
+    <script src="https://unpkg.com/"></script>
     <style>
         body { font-family: monospace; background: #1a1a1a; color: #00ff00; padding: 20px; }
         #chat { height: 400px; border: 2px solid #00ff00; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #000; }
@@ -50,7 +50,9 @@
         // Инициализация Supabase
         const SUPABASE_URL = 'https://jrbxaskvqmnrwwdrsmoc.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_oikYCFCq3-sSgirNwU8a1Q_sEtMK0vV';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+        if (!supabase) alert("Критическая ошибка: библиотека Supabase не загрузилась!");
+
 
         const chatDiv = document.getElementById('chat');
 
