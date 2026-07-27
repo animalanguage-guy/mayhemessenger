@@ -11,9 +11,12 @@
         input, button, select { background: #222; color: #00ff00; border: 1px solid #00ff00; padding: 10px; font-family: monospace; }
         button { cursor: pointer; }
         button:hover { background: #00ff00; color: #000; }
+        
+        /* Эффекты хаоса */
         .effect-shake { animation: shake 0.2s infinite; display: inline-block; }
         .effect-invert { filter: invert(1); background: #ff0000 !important; color: #000; }
         .effect-glitch { text-shadow: 2px 2px #ff00fa, -2px -2px #00f0ff; font-weight: bold; }
+        
         @keyframes shake {
             0% { transform: translate(1px, 1px) rotate(0deg); }
             20% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -41,32 +44,31 @@
 
     <button onclick="sendMessage()">Отправить хаос</button>
 
-    <!-- Вшитая автономная библиотека Supabase JS Client v2.43.4 -->
     <script>
-        !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";class t{constructor(e,t){this.url=e,this.key=t}static createClient(e,t){return new t(e,t)}get from(){return e=>({select:()=>({order:()=>({limit:async()=>({data:[]})})}),insert:async e=>{try{const t=await fetch(`${this.url}/rest/v1/${e}`,{method:"POST",headers:{apikey:this.key,Authorization:`Bearer ${this.key}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(e)});return{error:t.ok?null:new Error("API Error")}}catch(e){return{error:e}}})})}channel(){return{on:function(){return this},subscribe:function(){return this}}}}e.createClient=(e,t)=>new t(e,t);Object.defineProperty(e,"__esModule",{value:!0})});
-    </script>
-
-    <!-- Логика самого мессенджера -->
-    <script>
-        const SUPABASE_URL = 'https://supabase.co';
+        // Чистый REST API адрес вашей базы данных
+        const API_URL = 'https://jrbxaskvqmnrwwdrsmoc.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_oikYCFCq3-sSgirNwU8a1Q_seTMK0vV';
-        
-        // Инициализируем клиент напрямую из встроенного скрипта
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        const chatDiv = document.getElementById('chat');
 
+        // 1. Функция загрузки сообщений с сервера
         async function loadMessages() {
             try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/messages?select=*&order=created_at.asc&limit=50`, {
-                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                const response = await fetch(`${API_URL}?select=*&order=created_at.asc&limit=50`, {
+                    headers: { 
+                        'apikey': SUPABASE_KEY, 
+                        'Authorization': `Bearer ${SUPABASE_KEY}` 
+                    }
                 });
                 if (response.ok) {
                     const data = await response.json();
+                    document.getElementById('chat').innerHTML = ''; // Очищаем чат перед рендером
                     if (data) data.forEach(appendMessage);
                 }
-            } catch (e) { console.error("Ошибка загрузки:", e); }
+            } catch (e) { 
+                console.error("Ошибка при получении истории:", e); 
+            }
         }
 
+        // 2. Функция отправки нового сообщения
         async function sendMessage() {
             const sender = document.getElementById('username').value;
             const text = document.getElementById('messageInput').value;
@@ -74,7 +76,7 @@
             if (!text.trim()) return;
 
             try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
                         'apikey': SUPABASE_KEY,
@@ -84,26 +86,38 @@
                     },
                     body: JSON.stringify([{ sender, text, effect_type }])
                 });
+
                 if (response.ok) {
                     document.getElementById('messageInput').value = '';
-                    // Имитируем Realtime для себя, если сокет заблокирован
-                    appendMessage({ sender, text, effect_type });
+                    // Сразу обновляем чат у себя, чтобы увидеть отправленное сообщение
+                    loadMessages();
+                } else {
+                    console.error("Сервер вернул ошибку при отправке");
                 }
-            } catch (e) { console.error("Ошибка отправки:", e); }
+            } catch (e) { 
+                console.error("Сетевая ошибка отправки:", e); 
+            }
         }
 
+        // 3. Вывод сообщений на экран
         function appendMessage(msg) {
+            const chatDiv = document.getElementById('chat');
             const msgEl = document.createElement('div');
             msgEl.classList.add('msg');
+            
             if (msg.effect_type && msg.effect_type !== 'none') {
                 msgEl.classList.add(`effect-${msg.effect_type}`);
             }
+
             msgEl.innerHTML = `<strong>[${msg.sender}]:</strong> ${msg.text}`;
             chatDiv.appendChild(msgEl);
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
 
-        // Запуск
+        // 4. Поллинг (автоматическое обновление чата каждые 3 секунды взамен заблокированных сокетов)
+        setInterval(loadMessages, 3000);
+
+        // Первый запуск при открытии
         loadMessages();
     </script>
 </body>
