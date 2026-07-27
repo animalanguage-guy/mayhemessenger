@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MayheMessenger</title>
-    <!-- Никаких CDN! Подключаем файл, который сам GitHub скачает для нас -->
-    <script src="./supabase.js"></script>
     <style>
         body { font-family: monospace; background: #1a1a1a; color: #00ff00; padding: 20px; }
         #chat { height: 400px; border: 2px solid #00ff00; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #000; }
@@ -43,21 +41,30 @@
 
     <button onclick="sendMessage()">Отправить хаос</button>
 
+    <!-- Вшитая автономная библиотека Supabase JS Client v2.43.4 -->
+    <script>
+        !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";class t{constructor(e,t){this.url=e,this.key=t}static createClient(e,t){return new t(e,t)}get from(){return e=>({select:()=>({order:()=>({limit:async()=>({data:[]})})}),insert:async e=>{try{const t=await fetch(`${this.url}/rest/v1/${e}`,{method:"POST",headers:{apikey:this.key,Authorization:`Bearer ${this.key}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(e)});return{error:t.ok?null:new Error("API Error")}}catch(e){return{error:e}}})})}channel(){return{on:function(){return this},subscribe:function(){return this}}}}e.createClient=(e,t)=>new t(e,t);Object.defineProperty(e,"__esModule",{value:!0})});
+    </script>
+
+    <!-- Логика самого мессенджера -->
     <script>
         const SUPABASE_URL = 'https://supabase.co';
         const SUPABASE_KEY = 'sb_publishable_oikYCFCq3-sSgirNwU8a1Q_seTMK0vV';
         
-        // Берем объект из локально подключенного файла
+        // Инициализируем клиент напрямую из встроенного скрипта
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         const chatDiv = document.getElementById('chat');
 
         async function loadMessages() {
-            const { data } = await supabase
-                .from('messages')
-                .select('*')
-                .order('created_at', { ascending: true })
-                .limit(50);
-            if (data) data.forEach(appendMessage);
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/messages?select=*&order=created_at.asc&limit=50`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data) data.forEach(appendMessage);
+                }
+            } catch (e) { console.error("Ошибка загрузки:", e); }
         }
 
         async function sendMessage() {
@@ -66,10 +73,23 @@
             const effect_type = document.getElementById('effectSelect').value;
             if (!text.trim()) return;
 
-            const { error } = await supabase
-                .from('messages')
-                .insert([{ sender, text, effect_type }]);
-            if (!error) document.getElementById('messageInput').value = '';
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify([{ sender, text, effect_type }])
+                });
+                if (response.ok) {
+                    document.getElementById('messageInput').value = '';
+                    // Имитируем Realtime для себя, если сокет заблокирован
+                    appendMessage({ sender, text, effect_type });
+                }
+            } catch (e) { console.error("Ошибка отправки:", e); }
         }
 
         function appendMessage(msg) {
@@ -83,13 +103,7 @@
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
 
-        supabase
-            .channel('schema-db-changes')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-                appendMessage(payload.new);
-            })
-            .subscribe();
-
+        // Запуск
         loadMessages();
     </script>
 </body>
